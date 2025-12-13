@@ -1,6 +1,9 @@
 # 256 weapons wiki pages total
-# 16 weapons starting with Dwells-In-Light ending at wounded heart do not have links (add maually to wiki then scrape)
-# some weapon elements dont have text
+# 16 weapons starting with Dwells-In-Light ending at wounded heart 
+# do not have links (add maually to wiki then scrape) DONE
+# some weapon elements dont have text 
+# Some weapon wikis are formatted differently and miss data
+# e.g., "Wooden Wall" has no description, image, locations, vocations (ADD MANUALLY) DONE
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -28,20 +31,18 @@ class FextralifeWeaponsListScraper:
     }
 
     def __init__(self):
-        """Initializes the weapons list scraper."""
+        """Initializes the weapons list scraper. (NOT NEEDED CURRENTLY)"""
         pass
 
-    def get_weapon_links(self, url=None):
+    def get_weapon_links(self, url=WEAPONS_LIST_URL):
         """
         Scrapes the weapons list page and extracts all weapon links.
         Weapons are organized by category (Daggers, Longswords, etc.) with images.
         
         :param url: Optional URL to scrape (defaults to WEAPONS_LIST_URL)
-        :return: A list of tuples containing (weapon_name, weapon_url)
+        :return: A list of tuples containing (weapon_name, weapon_url to pass to class FextralifeWeaponScraper)
         """
-        if url is None:
-            url = self.WEAPONS_LIST_URL
-        
+    
         try:
             r = requests.get(url, headers=self.HEADERS)
             r.raise_for_status()
@@ -95,10 +96,6 @@ class FextralifeWeaponsListScraper:
                 continue
             if any(bt.lower() == clean_name.lower() for bt in blacklist_titles):
                 continue
-            # Previously we skipped single-word titles ending with 's' as probable category pages.
-            # That heuristic incorrectly filtered out valid single-word weapon names
-            # (e.g. "Meniscus"). Rely on explicit blacklist titles and href prefixes
-            # instead to avoid dropping legitimate weapons.
 
             # normalize absolute URL
             if href.startswith("/"):
@@ -286,7 +283,7 @@ class FextralifeWeaponScraper:
         p_tags = soup.find_all("p")
         data["description"] = None
         if len(p_tags) > 2:
-            P3 = p_tags[2]
+            P3 = p_tags[2] # need to get the 3rd paragraph for most weapons
             raw_text = P3.text.strip()
             data["description"] = " ".join(raw_text.split()) # Normalize whitespace
 
