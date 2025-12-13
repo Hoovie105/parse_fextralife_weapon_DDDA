@@ -1,4 +1,6 @@
-# 257 weapons
+# 256 weapons wiki pages total
+# 16 weapons starting with Dwells-In-Light ending at wounded heart do not have links (add maually to wiki then scrape)
+# some weapon elements dont have text
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -93,12 +95,10 @@ class FextralifeWeaponsListScraper:
                 continue
             if any(bt.lower() == clean_name.lower() for bt in blacklist_titles):
                 continue
-            # skip category pages that are basically plural weapon lists
-            # heuristic: if the link text is a single word and ends with 's' it's likely a category
-            if len(clean_name.split()) == 1 and clean_name.endswith('s'):
-                # but allow if the href contains a '+' (named page) or an apostrophe
-                if '+' not in href and "'" not in clean_name:
-                    continue
+            # Previously we skipped single-word titles ending with 's' as probable category pages.
+            # That heuristic incorrectly filtered out valid single-word weapon names
+            # (e.g. "Meniscus"). Rely on explicit blacklist titles and href prefixes
+            # instead to avoid dropping legitimate weapons.
 
             # normalize absolute URL
             if href.startswith("/"):
@@ -434,10 +434,10 @@ if __name__ == "__main__":
     # 3. Instantiate the weapon parser
     scraper = FextralifeWeaponScraper(download_dir="scraped_weapon_data")
     
-    # 4. Parse each weapon
+    # 4. Parse each weapon with magic number 46 list pre-splice
     all_weapons_data = []
-    for i, (weapon_name, weapon_url) in enumerate(weapon_links[31:], 1):
-        print(f"[{i}/{len(weapon_links[31:])}] Parsing {weapon_name}...")
+    for i, (weapon_name, weapon_url) in enumerate(weapon_links[46:], 1):
+        print(f"[{i}/{len(weapon_links[46:])}] Parsing {weapon_name}...")
         weapon_data = scraper.parse_weapon(weapon_url)
         if weapon_data:
             # Add an ID to each weapon
