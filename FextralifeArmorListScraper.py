@@ -78,9 +78,9 @@ class FextralifeArmorListScraper:
         return results
 
 
-# ============================================================
-# SHARED ITEM PARSER (WEAPONS / ARMOR)
-# ============================================================
+# =================================================================
+# CANT BE BOTHERED TO RENAME SHARED ITEM PARSER (WEAPONS / ARMOR)
+# =================================================================
 
 class FextralifeWeaponScraper:
     BASE_URL = "https://dragonsdogma.wiki.fextralife.com"
@@ -234,23 +234,97 @@ class FextralifeWeaponScraper:
                 ul = h.find_next("ul")
                 if ul:
                     data["locations"] = [
-                        " ".join(li.get_text(strip=True).split())
+                        li.get_text(" ", strip=True)
                         for li in ul.find_all("li")
                         if "click here" not in li.get_text(strip=True).lower()
                     ]
                 break
 
-        # -------- Stats --------
+
+       # -------- Enhanced Stats & Resistances --------
         data["stats"] = {}
+        data["elemental_res"] = {}
+        data["debilitation_res"] = {}
+
+        def clean_icon_name(raw_name):
+            if not raw_name:
+                return None
+            # Remove standard icon prefix/suffix
+            name = re.sub(r'Icon-Element-|Icon-Debilitation-Skill-|Icon-Debilitation-|\.png', '', raw_name)
+            # Remove extra words
+            name = re.sub(r"Dragon's Dogma Wiki Guide", '', name, flags=re.I)
+            # Remove general keywords
+            name = name.replace("Element", "").replace("Debilitation", "").replace("Skill", "")
+            # Remove any trailing colons, commas, quotes
+            name = name.strip(" :,-")
+            # Normalize whitespace
+            name = " ".join(name.split())
+            return name
+
+        # --- Parse infobox <tr> first ---
         infobox = soup.find("div", id="infobox")
         if infobox:
             for tr in infobox.find_all("tr"):
                 tds = tr.find_all("td")
-                if len(tds) >= 2:
-                    k = tds[0].text.strip()
-                    v = tds[1].text.strip()
-                    if k and v:
-                        data["stats"][k] = v
+                if len(tds) < 2:
+                    continue
+                label = tds[0].get_text(strip=True)
+                value_cell = tds[1]
+                imgs = value_cell.find_all("img")
+
+                if imgs:
+                    for img in imgs:
+                        raw_name = img.get("title") or img.get("alt") or ""
+                        clean_name = clean_icon_name(raw_name)
+
+                        # Get value next to icon
+                        sibling = img.next_sibling
+                        val_text = ""
+                        if sibling and isinstance(sibling, str):
+                            val_text = sibling.strip()
+                        elif sibling:
+                            val_text = sibling.get_text(strip=True)
+
+                        if not clean_name:
+                            continue
+
+                        # Categorize
+                        if "Element" in raw_name:
+                            data["elemental_res"][clean_name] = val_text
+                        elif "Debilitation" in raw_name or "Skill" in raw_name:
+                            data["debilitation_res"][clean_name] = val_text
+                        else:
+                            data["stats"][f"{label} ({clean_name})"] = val_text
+                else:
+                    val = value_cell.get_text(strip=True)
+                    if label and val:
+                        data["stats"][label] = val
+
+        # --- Fallback: parse <li> icons outside infobox ---
+        for li in soup.find_all("li"):
+            imgs = li.find_all("img")
+            if not imgs:
+                continue
+            for img in imgs:
+                raw_name = img.get("title") or img.get("alt") or ""
+                clean_name = clean_icon_name(raw_name)
+
+                sibling = img.next_sibling
+                val_text = ""
+                if sibling and isinstance(sibling, str):
+                    val_text = sibling.strip()
+                elif sibling:
+                    val_text = sibling.get_text(strip=True)
+
+                if not clean_name:
+                    continue
+
+                if "Element" in raw_name:
+                    data["elemental_res"][clean_name] = val_text
+                elif "Debilitation" in raw_name or "Skill" in raw_name:
+                    data["debilitation_res"][clean_name] = val_text
+
+
 
         # -------- Vocations --------
         data["vocations"] = []
@@ -284,7 +358,7 @@ class FextralifeWeaponScraper:
 
                 if vocation not in data["vocations"]:
                     data["vocations"].append(vocation)
-
+                    
 
         return data
 
